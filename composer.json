@@ -1,0 +1,20 @@
+{
+    "name": "reyzeal/lsbd",
+    "description": "LSBD Library",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Rizal Ardhi Rahmadani",
+            "email": "rizal.ardhi.rahmadani@gmail.com"
+        }
+    ],
+    "require": {
+        "ramsey/uuid": "^4.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "reyzeal\\" : "src"
+        }
+    }
+}
