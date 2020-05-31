@@ -25,7 +25,8 @@ class Stack implements Meta{
             "total" => 0,
             "total_uncompressed" => 0
         ];
-        array_map(function($data) use (&$total){
+        array_map(function(&$data) use (&$total){
+            $data->compressed_size = BinaryDelta::getSize($data->name);
             $total['total'] += $data->compressed_size;
             $total['total_uncompressed'] += $data->size;
         }, $this->meta['stack']);
@@ -146,28 +147,41 @@ class Stack implements Meta{
             $data = file_get_contents($file);
             file_put_contents($ustr,$data);
             $this->meta["stack"][] = new Container($ustr,BinaryDelta::getSize($ustr),BinaryDelta::getSize($ustr));
+            $data = bzcompress($data,9);
+            file_put_contents($ustr,$data);
+            
             $this->update();
             return is_file($ustr);
         }
         $latest = end($this->meta['stack']);
+
+        $get = file_get_contents($latest->name);
+        $get = bzdecompress($get,true);
+        file_put_contents($latest->name, $get);
+
         $uuid = Uuid::uuid4();
         $ustr = $this->getpath($uuid->toString());
         $actualSize = BinaryDelta::getSize($latest->name);
         BinaryDelta::generate($file,$latest->name,"$latest->name.patch");
         $data = file_get_contents($file);
         file_put_contents($ustr,$data);
+        $actual = BinaryDelta::getSize($ustr);
+        $data = bzcompress($data,9);
+        file_put_contents($ustr,$data);
         $latest->size = $actualSize;
         $latest->compressed_size = BinaryDelta::getSize("$latest->name.patch");
         rename("$latest->name.patch",$latest->name);
         $this->meta['stack'][count($this->meta['stack'])-1] = $latest;
-        $this->meta["stack"][] = new Container($ustr,BinaryDelta::getSize($ustr),BinaryDelta::getSize($ustr));
+        $this->meta["stack"][] = new Container($ustr,$actual,$actual);
         $this->update();
         return is_file($ustr);
     }
     public function get($uuid=null){
         if($uuid == null){
             if(count($this->meta['stack']) > 0){
-                return file_get_contents(end($this->meta['stack'])->name);
+                $data = file_get_contents(end($this->meta['stack'])->name);
+                $dcompress = bzdecompress($data,true);
+                return $data;
             }
             return null;
         }
@@ -175,6 +189,12 @@ class Stack implements Meta{
         if(!is_bool($uuid) && $uuid>=0){
             $r = $this->meta['stack'];
             $base = array_pop($r)->name;
+            
+            $get = file_get_contents($base);
+            $get = bzdecompress($get,true);
+            file_put_contents($base, $get);
+            $revert = $base;
+            
             $temp = $this->getpath("temp");
             copy($base,$temp);
             while($uuid){
@@ -183,6 +203,7 @@ class Stack implements Meta{
                 $base = $temp;
                 $uuid--;
             }
+            file_put_contents($revert, bzcompress($get,9));
             $data = file_get_contents($temp);
             unlink($temp);
             return $data;

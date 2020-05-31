@@ -42,20 +42,32 @@ class LinkedList implements Meta{
                 ];
             }
             $files = $list->files();
-            BinaryDelta::generate(end($files)->name, $file, $this->getpath($list->getName().".patch"));
+            $f = end($files)->name;
+            $data = file_get_contents($f);
+            $data = bzdecompress($data);
+            file_put_contents($f,$data);
+            BinaryDelta::generate($f, $file, $this->getpath($list->getName().".patch"));
+            file_put_contents($f, bzcompress($data,9));
             $patches[$list->getName()] = BinaryDelta::getSize($this->getpath($list->getName().".patch"));
+            
         }
         $min = null;
         array_map(function($data) use ($patches,&$min, $file){
             if($min == null) $min = $data->getName();
             else{
-                if($patches[$min] > $patches[$data->getName()] && BinaryDelta::getSize($file) > $patches[$min] ){
+                if($patches[$min] > $patches[$data->getName()] && BinaryDelta::getSize($file) > $patches[$data->getName()] ){
+                    echo $min." ".$data->getName()." ".$patches[$min]." ".$patches[$data->getName()];
                     $min = $data->getName();
                 }
             }
         }, $this->meta['list']);
+        echo "\n\n============\n";
+        print_r($patches);
+        print_r($min);
+        echo PHP_EOL.($patches[$min]/BinaryDelta::getSize($file));
+        echo "\n\n============\n";
         $stackTarget = null;
-        if($min && $patches[$min]/$this->get($min)->getSize() < $this->threshold){
+        if($min && $patches[$min]/BinaryDelta::getSize($file) < $this->threshold){
             $this->get($min)->push($file);
             $stackTarget = $this->get($min);
         }else{
