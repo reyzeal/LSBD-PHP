@@ -5,6 +5,7 @@ namespace reyzeal\LSBD;
 use reyzeal\LSBD\PathHelper;
 use reyzeal\LSBD\Meta;
 use reyzeal\LSBD\Stack;
+use reyzeal\LSBD\Compression;
 use reyzeal\LSBD\MetaCompression;
 use Ramsey\Uuid\Uuid;
 
@@ -13,6 +14,7 @@ class LinkedList implements Meta{
     use MetaCompression;
     protected $threshold = 0.9;
     public function __construct($path){
+        $this->archiver = new Compression(1,9);
         $this->path = $path;
         $this->meta = [
             "total" => 0,
@@ -44,10 +46,10 @@ class LinkedList implements Meta{
             $files = $list->files();
             $f = end($files)->name;
             $data = file_get_contents($f);
-            $data = bzdecompress($data);
+            $data = $this->archiver->decompress($data);
             file_put_contents($f,$data);
             BinaryDelta::generate($f, $file, $this->getpath($list->getName().".patch"));
-            file_put_contents($f, bzcompress($data,9));
+            file_put_contents($f, $this->archiver->compress($data,9));
             $patches[$list->getName()] = BinaryDelta::getSize($this->getpath($list->getName().".patch"));
             
         }
@@ -61,11 +63,6 @@ class LinkedList implements Meta{
                 }
             }
         }, $this->meta['list']);
-        echo "\n\n============\n";
-        print_r($patches);
-        print_r($min);
-        echo PHP_EOL.($patches[$min]/BinaryDelta::getSize($file));
-        echo "\n\n============\n";
         $stackTarget = null;
         if($min && $patches[$min]/BinaryDelta::getSize($file) < $this->threshold){
             $this->get($min)->push($file);

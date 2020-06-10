@@ -5,6 +5,7 @@ use reyzeal\LSBD\MetaCompression;
 use Ramsey\Uuid\Uuid;
 use reyzeal\LSBD\BinaryDelta;
 use reyzeal\LSBD\PathHelper;
+use reyzeal\LSBD\Compression;
 class Container{
     public $size = 0;
     public $compressed_size = 0;
@@ -42,6 +43,7 @@ class Stack implements Meta{
         return $this->name;
     }
     public function __construct($path){
+        $this->archiver = new Compression(1,9);
         $this->name = basename($path);
         $this->path = $path;
         $this->meta = [
@@ -147,7 +149,7 @@ class Stack implements Meta{
             $data = file_get_contents($file);
             file_put_contents($ustr,$data);
             $this->meta["stack"][] = new Container($ustr,BinaryDelta::getSize($ustr),BinaryDelta::getSize($ustr));
-            $data = bzcompress($data,9);
+            $data = $this->archiver->compress($data,9);
             file_put_contents($ustr,$data);
             
             $this->update();
@@ -156,7 +158,7 @@ class Stack implements Meta{
         $latest = end($this->meta['stack']);
 
         $get = file_get_contents($latest->name);
-        $get = bzdecompress($get,true);
+        $get = $this->archiver->decompress($get);
         file_put_contents($latest->name, $get);
 
         $uuid = Uuid::uuid4();
@@ -166,7 +168,7 @@ class Stack implements Meta{
         $data = file_get_contents($file);
         file_put_contents($ustr,$data);
         $actual = BinaryDelta::getSize($ustr);
-        $data = bzcompress($data,9);
+        $data = $this->archiver->compress($data,9);
         file_put_contents($ustr,$data);
         $latest->size = $actualSize;
         $latest->compressed_size = BinaryDelta::getSize("$latest->name.patch");
@@ -180,7 +182,7 @@ class Stack implements Meta{
         if($uuid == null){
             if(count($this->meta['stack']) > 0){
                 $data = file_get_contents(end($this->meta['stack'])->name);
-                $dcompress = bzdecompress($data,true);
+                $dcompress = $this->archiver->decompress($data);
                 return $data;
             }
             return null;
@@ -191,7 +193,7 @@ class Stack implements Meta{
             $base = array_pop($r)->name;
             
             $get = file_get_contents($base);
-            $get = bzdecompress($get,true);
+            $get = $this->archiver->decompress($get);
             file_put_contents($base, $get);
             $revert = $base;
             
@@ -203,7 +205,7 @@ class Stack implements Meta{
                 $base = $temp;
                 $uuid--;
             }
-            file_put_contents($revert, bzcompress($get,9));
+            file_put_contents($revert, $this->archiver->compress($get,9));
             $data = file_get_contents($temp);
             unlink($temp);
             return $data;
