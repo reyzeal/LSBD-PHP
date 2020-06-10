@@ -13,7 +13,7 @@ class Compression{
     public function compress($data, $level=null){
         switch($this->type){
             case self::$GZIP:
-                $result = gzdeflate($data, $level);
+                $result = gzcompress($data, $level);
             break;
             case self::$BZIP2:
                 $result = bzcompress($data,$level);
@@ -24,7 +24,7 @@ class Compression{
     public function decompress($data){
         switch($this->type){
             case self::$GZIP:
-                $result = gzinflate($data);
+                $result = gzuncompress($data);
             break;
             case self::$BZIP2:
                 $result = bzdecompress($data);
