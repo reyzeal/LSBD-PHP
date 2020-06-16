@@ -25,7 +25,7 @@ class LSBD{
         $this->lsbd = null;
         $this->compressFlag = $compressFlag;
         if(!is_dir($path)){
-            mkdir($path);
+            mkdir($path,0777,true);
         }
         if(is_file($this->getpath("lsbd.data"))){
             $this->lsbd = unserialize(file_get_contents($this->getpath("lsbd.data")));
